@@ -1,0 +1,12 @@
+streamlit
+langchain==1.2.17
+langchain-classic
+langchain-text-splitters
+langchain-community
+chromadb
+pypdf
+python-dotenv
+# Für OpenAI:
+#langchain-openai==0.0.5
+# ODER für lokale Modelle (Ollama):
+langchain-ollama
