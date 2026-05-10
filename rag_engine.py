@@ -80,6 +80,7 @@ def get_local_ollama_models() -> list[str]:
 
 class RAGEngine:
     ROOT_STORE_TOKEN = "__legacy_root__"
+    OLLAMA_INGEST_BATCH_SIZE = 32
 
     def __init__(
             self,
@@ -98,8 +99,8 @@ class RAGEngine:
 
         # Text Splitter
         self.text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=250,
-            chunk_overlap=25,
+            chunk_size=1000,
+            chunk_overlap=100,
             length_function=len
         )
 
@@ -207,10 +208,10 @@ class RAGEngine:
         else:
             model_scoped_name = mapped_store_dir or self._safe_model_dir_name()
             model_scoped_dir = self.persist_root_dir / model_scoped_name
-        legacy_sqlite = self.persist_root_dir / "chroma.sqlite3"
-        model_sqlite = model_scoped_dir / "chroma.sqlite3"
-
-        if legacy_sqlite.exists() and not model_sqlite.exists():
+        # Reuse legacy root store when it already contains an index and the
+        # mapped/model-scoped location does not. This avoids repeatedly creating
+        # new stores after interrupted/failed initializations.
+        if self._has_index_for_dir(self.persist_root_dir) and not self._has_index_for_dir(model_scoped_dir):
             self._save_store_mapping(self.ROOT_STORE_TOKEN)
             return self.persist_root_dir
 
@@ -255,20 +256,23 @@ class RAGEngine:
             print("Creating new vector store from documents...")
             return self._create_vectorstore()
 
-    def _has_index(self) -> bool:
+    def _has_index_for_dir(self, persist_dir: Path) -> bool:
         """Check if index exists and contains vectors for this collection."""
-        sqlite_path = self.persist_dir / "chroma.sqlite3"
+        sqlite_path = persist_dir / "chroma.sqlite3"
         if not sqlite_path.exists():
             return False
         try:
             store = Chroma(
                 collection_name=self.collection_name,
-                persist_directory=str(self.persist_dir),
+                persist_directory=str(persist_dir),
                 embedding_function=self.embeddings,
             )
             return store._collection.count() > 0
         except Exception:
             return False
+
+    def _has_index(self) -> bool:
+        return self._has_index_for_dir(self.persist_dir)
 
     def _documents_state_path(self) -> Path:
         return self.persist_dir / "documents_state.json"
@@ -326,7 +330,15 @@ class RAGEngine:
         chunks = self.text_splitter.split_documents(documents)
         print(f"Creating {len(chunks)} text chunks from {len(documents)} documents.")
 
-        # vectorstore creation and persist
+        vectorstore = self._create_vectorstore_pipeline(chunks, clear_existing=clear_existing)
+        self._save_documents_state(self._collect_documents_state())
+        print("   ✅ Vector store created!")
+        print("💾 Vector store saved!")
+
+        return vectorstore
+
+    def _create_vectorstore_pipeline(self, chunks: list, clear_existing: bool = False) -> Chroma:
+        """Provider-aware ingestion pipeline for vectorstore creation."""
         if clear_existing and self._has_index():
             try:
                 existing_store = Chroma(
@@ -341,12 +353,20 @@ class RAGEngine:
         vectorstore = Chroma(
             collection_name=self.collection_name,
             persist_directory=str(self.persist_dir),
-            embedding_function=self.embeddings
+            embedding_function=self.embeddings,
         )
-        vectorstore.add_documents(chunks)
-        self._save_documents_state(self._collect_documents_state())
-        print("   ✅ Vector store created!")
-        print("💾 Vector store saved!")
+
+        if self.use_openai_api:
+            vectorstore.add_documents(chunks)
+            return vectorstore
+
+        total_chunks = len(chunks)
+        batch_size = self.OLLAMA_INGEST_BATCH_SIZE
+        print(f"🧱 Step 4: Ollama ingest pipeline in batches of {batch_size}...")
+        for start in range(0, total_chunks, batch_size):
+            end = min(start + batch_size, total_chunks)
+            vectorstore.add_documents(chunks[start:end])
+            print(f"   ✅ Indexed chunks {start + 1}-{end} / {total_chunks}")
 
         return vectorstore
 
