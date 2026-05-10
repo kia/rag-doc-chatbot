@@ -5,6 +5,7 @@
 ## Project Overview
 
 An intelligent chatbot that answers questions about PDF documents – based on **Retrieval-Augmented Generation (RAG)**. The system extracts knowledge from uploaded documents and delivers precise answers with source citations.
+This code is create with a lot of help from Junie Ultimate from Intellij.
 
 ## What It Does
 
@@ -93,8 +94,8 @@ streamlit run app.py
 
 ## Demo
 
-*(Insert screenshot of the chat interface here)*
 
+![](./Demo.png)
 ---
 
 ## 🎯 This project demonstrates hands-on experience with **core concepts of modern LLM development**:
@@ -120,14 +121,3 @@ streamlit run app.py
 - [ ] Evaluation metrics for answer quality
 
 ---
-
-## 📄 Short Version for Resume/CV
-
-**Document Chatbot with RAG (Personal Project)**  
-Built a retrieval-augmented generation system using LangChain, ChromaDB, and local LLMs (Ollama). Enables natural language Q&A over PDF documents with source citations. Demonstrates practical GenAI skills: embeddings, vector search, LLM integration, and privacy-first architecture.
-
----
-
-**Feel free to use this directly!** Just update the GitHub link and username.
-
-**Want me to also write a cover letter paragraph explaining this project for job applications?**
