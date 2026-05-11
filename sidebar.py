@@ -2,11 +2,13 @@ from pathlib import Path
 
 import streamlit as st
 
-from rag_engine import get_local_ollama_models, validate_openai_key, get_ai_models
+from model.ollama import get_local_ollama_models
+from model.open_ai import validate_openai_key, get_open_ai_models
 
 class Sidebar:
     def __init__(self, initialize_engine_fn):
         self.initialize_engine_fn = initialize_engine_fn
+        self.estimate_time = ""
 
     def render(self):
         with st.sidebar:
@@ -33,7 +35,7 @@ class Sidebar:
         if st.session_state.use_openai_api:
             open_ai_valid = validate_openai_key()
             if open_ai_valid:
-                ai_models = get_ai_models()
+                ai_models = get_open_ai_models()
                 if not ai_models:
                     ai_models = ["gpt-4.1-mini"]
 
@@ -106,3 +108,4 @@ class Sidebar:
                 st.table(file_names)
         else:
             st.caption("No PDF files loaded yet.")
+

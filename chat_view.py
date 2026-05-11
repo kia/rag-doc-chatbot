@@ -18,7 +18,7 @@ class ChatView:
     def _render_message_history(self):
         for msg_idx, msg in enumerate(st.session_state.messages):
             with st.chat_message(msg["role"]):
-                st.write(msg["content"])
+                st.write("**" + msg["model_name"] +"**: " + msg["content"])
                 if msg.get("estimated_usage"):
                     self.token_usage.render_estimated_usage(msg["estimated_usage"])
                 if msg.get("token_usage"):
@@ -84,11 +84,11 @@ class ChatView:
 
             if confirm_send:
                 estimate_for_message = st.session_state.pending_estimate
-                st.session_state.messages.append({"role": "user", "content": pending_prompt})
-                with st.spinner("🤔 Searching documents..."):
+                st.session_state.messages.append({"model_name":model_name, "role": "user", "content": pending_prompt})
+                with st.spinner("🤔 **" + model_name + "** - Searching documents..."):
                     try:
                         result = st.session_state.engine.query(pending_prompt)
-                        st.write("**" + model_name + "**: " + result["answer"])
+                        st.write(result["answer"])
 
                         if result.get("token_usage"):
                             self.token_usage.render_token_usage(result["token_usage"])
@@ -100,6 +100,7 @@ class ChatView:
 
                         st.session_state.messages.append({
                             "role": "assistant",
+                            "model_name": model_name,
                             "content": result["answer"],
                             "sources": result["sources"],
                             "token_usage": result.get("token_usage"),

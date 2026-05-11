@@ -6,6 +6,7 @@ def initialize_session_state():
         "engine": None,
         "engine_ready": False,
         "engine_error": None,
+        "engine_status": None,
         "messages": [],
         "pending_prompt": None,
         "pending_estimate": None,

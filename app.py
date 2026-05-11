@@ -35,9 +35,8 @@ with st.container():
 
 initialize_session_state()
 
-if st.session_state.engine_ready:
-    st.success(f"✅ Vector store ready! Selected Model: {st.session_state.selected_model}")
-    st.caption(f"Store: `{st.session_state.engine.persist_dir}`")
+if st.session_state.engine_status:
+    st.info(st.session_state.engine_status +" using **"+ st.session_state.selected_model+"**")
 else:
     st.info("ℹ️ Vector store is not initialized yet. Click 'Initialize / Load vector store' in the sidebar.")
     if st.session_state.engine_error:

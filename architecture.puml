@@ -1,0 +1,17 @@
+@startuml
+left to right direction
+
+rectangle "PDF Documents\n(Upload)" as PDF
+rectangle "Embedding\n(SentenceTrans.)" as EMB
+database "ChromaDB\n(Vectors)" as DB
+rectangle "Retrieval\n(Similarity)" as RET
+rectangle "LLM\n(Ollama/Llama)" as LLM
+rectangle "  Answer with    \n    Sources" as ANS
+
+PDF --> EMB
+EMB --> DB
+DB -> RET
+LLM <-- RET
+ANS <-- LLM
+
+@enduml

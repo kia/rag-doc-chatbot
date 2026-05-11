@@ -5,6 +5,8 @@
 ## Project Overview
 
 An intelligent chatbot that answers questions about PDF documents – based on **Retrieval-Augmented Generation (RAG)**. The system extracts knowledge from uploaded documents and delivers precise answers with source citations.
+The creation of a local vectorstor can take a long time. In this applcation the vectorstore is mapped to a model and the document structure and persisted. 
+This avoids to be foreced to create the vectorstore from scratch every time the application is started.  
 This code is create with a lot of help from Junie Ultimate from Intellij.
 
 ## What It Does
@@ -28,17 +30,7 @@ This code is create with a lot of help from Junie Ultimate from Intellij.
 
 ## Architecture
 
-```puml
-┌──────────────┐     ┌─────────────────┐    ┌──────────────┐
-│ PDF Documents│  →  │  Embedding      │ →  │  ChromaDB    │
-│ (Upload)     │     │ (SentenceTrans.)│    │  (Vectors)   │
-└──────────────┘     └─────────────────┘    └──────┬───────┘
-                                                   │
-┌──────────────┐     ┌─────────────────┐    ┌──────┴───────┐
-│  Answer with │  ←  │  LLM            │ ←  │  Retrieval   │
-│  Sources     │     │  (Ollama/Llama) │    │  (Similarity)│
-└──────────────┘     └─────────────────┘    └──────────────┘
-```
+![](./architecture.png)
 
 ## Key Features
 
@@ -63,6 +55,13 @@ This code is create with a lot of help from Junie Ultimate from Intellij.
 - **End-to-End Development** – From idea to deployable system
 
 ## Installation & Usage
+
+add `.env` file with the following content:
+```
+# OPENAI_API_KEY=
+# ODER wenn du Ollama lokal nutzt:
+OLLAMA_BASE_URL=http://localhost:11434
+```
 
 ```bash
 # Clone
