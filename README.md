@@ -14,6 +14,7 @@ Subsequent application launches load the persisted vector store instantly, elimi
 - 💬 **Natural Answers** – An LLM generates understandable responses based on the documents
 - 📎 **Source Citations** – Every answer shows which document the information comes from
 - 💾 **Persistent Storage** – Once-processed documents are cached for fast follow-up queries
+- 💰 **Cost Estimation Before Sending** – For OpenAI queries, estimated token usage and cost (lib: tokencost) are shown before the request is sent
 
 ## Technology Stack
 
