@@ -5,10 +5,8 @@
 ## Project Overview
 
 An intelligent chatbot that answers questions about PDF documents – based on **Retrieval-Augmented Generation (RAG)**. The system extracts knowledge from uploaded documents and delivers precise answers with source citations.
-The creation of a local vectorstor can take a long time. In this applcation the vectorstore is mapped to a model and the document structure and persisted. 
-This avoids to be foreced to create the vectorstore from scratch every time the application is started.  
-This code is create with a lot of help from Junie Ultimate from Intellij.
-
+Initial vector store creation can take several minutes depending on document size. To improve user experience, this application saves the computed vector store to disk together with its embedding model configuration and document structure. 
+Subsequent application launches load the persisted vector store instantly, eliminating the need for recomputation.
 ## What It Does
 
 - 📄 **Process PDF Documents** – Loads and analyzes arbitrary PDF files
