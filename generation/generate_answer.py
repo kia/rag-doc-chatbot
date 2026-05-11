@@ -1,13 +1,18 @@
+import time
+
 from generation.build_prompt import build_query_prompt
+from quality_metrics import build_quality_metrics
 from retrieval.embed_query import run_embedded_query
 
 
 def generate_answer(qa_chain, question: str, use_openai_api: bool, context: str = "") -> dict:
+    start_time = time.time()
     full_query = build_query_prompt(question, context)
     result, token_usage = run_embedded_query(qa_chain, full_query, use_openai_api)
+    source_documents = result["source_documents"]
 
     sources = []
-    for doc in result["source_documents"]:
+    for doc in source_documents:
         source_path = doc.metadata.get("source", "Unknown")
         chunk_text = (doc.page_content or "").strip().replace("\n", " ")
         page_number = doc.metadata.get("page")
@@ -22,9 +27,18 @@ def generate_answer(qa_chain, question: str, use_openai_api: bool, context: str 
             "search_text": search_text,
         })
 
+    latency_ms = int((time.time() - start_time) * 1000)
+    quality_metrics = build_quality_metrics(
+        source_documents=source_documents,
+        answer=result["result"],
+        latency_ms=latency_ms,
+        token_usage=token_usage,
+    )
+
     return {
         "answer": result["result"],
         "sources": sources,
         "total_sources": len(sources),
         "token_usage": token_usage,
+        "quality_metrics": quality_metrics,
     }

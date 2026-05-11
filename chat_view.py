@@ -2,6 +2,7 @@ import traceback
 
 import streamlit as st
 
+from quality_metrics import render_quality_metrics
 from source_view import render_sources
 from token_usage import TokenUsage
 
@@ -18,11 +19,16 @@ class ChatView:
     def _render_message_history(self):
         for msg_idx, msg in enumerate(st.session_state.messages):
             with st.chat_message(msg["role"]):
-                st.write("**" + msg["model_name"] +"**: " + msg["content"])
+                if msg["role"] == "assistant":
+                    st.write("**" + msg["model_name"] +"**: " + msg["content"])
+                else:
+                    st.write(msg["content"])
                 if msg.get("estimated_usage"):
                     self.token_usage.render_estimated_usage(msg["estimated_usage"])
                 if msg.get("token_usage"):
                     self.token_usage.render_token_usage(msg["token_usage"])
+                if msg.get("quality_metrics"):
+                    render_quality_metrics(msg["quality_metrics"], key_prefix=f"history_{msg_idx}_{msg['role']}")
                 if "sources" in msg:
                     with st.expander("📎 Sources"):
                         render_sources(msg["sources"], key_prefix=f"history_{msg_idx}_{msg['role']}")
@@ -93,6 +99,9 @@ class ChatView:
                         if result.get("token_usage"):
                             self.token_usage.render_token_usage(result["token_usage"])
 
+                        if result.get("quality_metrics"):
+                            render_quality_metrics(result["quality_metrics"], key_prefix="latest_answer")
+
                         if result["sources"]:
                             st.markdown("---")
                             st.markdown(f"**📎 {len(result['sources'])} source(s) found:**")
@@ -104,6 +113,7 @@ class ChatView:
                             "content": result["answer"],
                             "sources": result["sources"],
                             "token_usage": result.get("token_usage"),
+                            "quality_metrics": result.get("quality_metrics"),
                             "estimated_usage": estimate_for_message,
                         })
                         st.rerun()
