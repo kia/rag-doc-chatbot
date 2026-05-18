@@ -1,22 +1,23 @@
+import logging
+
+logger = logging.getLogger("uvicorn.error")
 import json
 import os
-import time
 from collections.abc import Callable
 from pathlib import Path
 
 from dotenv import load_dotenv
-from generation.build_prompt import build_cost_estimation_prompt
-from generation.generate_answer import generate_answer
-from indexing.embeddings import create_embeddings
-from indexing.load_docs import load_and_split_documents, collect_documents_state
 from langchain_chroma import Chroma
 from langchain_classic.chains import RetrievalQA
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from retrieval.search_vectors import build_vector_search_chain
-from tokencost import calculate_all_costs_and_tokens
-from vectorestore_creation.store_mapping import StoreMapping
+from rag_doc_backend.generation import generate_answer
+from rag_doc_backend.indexing.embeddings import create_embeddings
+from rag_doc_backend.indexing.load_docs import load_and_split_documents, collect_documents_state
+from rag_doc_backend.retrieval.search_vectors import build_vector_search_chain
+from rag_doc_backend.vectorestore_creation.store_mapping import StoreMapping
+from rag_doc_backend.vectorestore_creation.pipeline import VectorstoreCreationPipeline
 
 load_dotenv()
 
@@ -28,8 +29,9 @@ class RAGEngine:
             docs_folder: str = "documents",
             persist_dir: str = "vectorstore",
             model_name: str = "gemma:2b",
-            use_openai_api: bool = False,
+            model_family: str = "ollama",
             status_callback: Callable[[str], None] | None = None,
+            k: int = 5
     ):
         self.docs_folder = Path(docs_folder)
         project_root = Path(__file__).resolve().parent
@@ -37,8 +39,9 @@ class RAGEngine:
         self.collection_name = "document_chatbot"
         self.mapping_db_path = self.persist_root_dir / "vectorstore_map.db"
         self.model_name = model_name
-        self.use_openai_api = use_openai_api
+        self.use_openai_api = model_family == "openai"
         self.status_callback = status_callback
+        self.k = k
 
         # Text Splitter
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -49,26 +52,36 @@ class RAGEngine:
 
         # Embeddings & LLM
         if self.use_openai_api:
-            print("using open ai mode: " + self.model_name)
+            logger.debug("using open ai mode: " + self.model_name)
             self.embeddings = create_embeddings(self.use_openai_api, self.model_name)
             self.llm = ChatOpenAI(model=self.model_name, temperature=0.7)
         else:
-            print("using local ollama mode: " + self.model_name)
+            logger.debug("using local ollama mode: " + self.model_name)
             self.embeddings = create_embeddings(self.use_openai_api, self.model_name)
             self.llm = ChatOllama(model=self.model_name, base_url="http://localhost:11434", temperature=0.7)
 
         store_map = StoreMapping(self.use_openai_api, self.model_name)
         self.persist_dir = store_map.resolve_persist_dir()
-        print("persist dir: " + str(self.persist_dir))
+        logger.debug("persist dir: " + str(self.persist_dir))
         # Vector Store laden oder erstellen
         self.vectorstore = self._load_or_create_vectorstore()
 
         # QA Chain
         self.qa_chain = self._build_qa_chain()
 
+    def init(self):
+        """Initializes the RAGEngine with the specified model and settings."""
+        self._ensure_persist_dir()
+        if self.persist_dir.exists() and self._has_index():
+            logger.debug("Vector store already initialized.")
+            return
+
+        logger.debug("Initializing vector store...")
+        self._load_or_create_vectorstore()
+        logger.debug("Vector store initialized.")
 
     def _build_qa_chain(self) -> RetrievalQA:
-        return build_vector_search_chain(self.llm, self.vectorstore)
+        return build_vector_search_chain(self.llm, self.vectorstore, k=self.k)
 
     def _ensure_persist_dir(self):
         self.persist_dir.mkdir(parents=True, exist_ok=True)
@@ -78,7 +91,7 @@ class RAGEngine:
     def _load_or_create_vectorstore(self):
         """Loads an existing Vectorstore or creates a new one from documents"""
         self._ensure_persist_dir()
-        print("loading vector store? " + str(self.persist_dir.exists() and self._has_index()))
+        logger.debug("loading vector store? " + str(self.persist_dir.exists() and self._has_index()))
         if self.persist_dir.exists() and self._has_index():
             current_doc_state = self._collect_documents_state()
             stored_doc_state = self._load_documents_state()
@@ -88,11 +101,11 @@ class RAGEngine:
                 # before document-state tracking existed.
                 self._save_documents_state(current_doc_state)
             elif stored_doc_state != current_doc_state:
-                print("Documents changed. Rebuilding vector store...")
+                logger.debug("Documents changed. Rebuilding vector store...")
                 self._set_status("🧱 Creating new vector store...")
                 return self._create_vectorstore(clear_existing=True)
 
-            print("Loading existing vector store...")
+            logger.debug("Loading existing vector store...")
             self._set_status("📦 Loading existing vector store...")
             return Chroma(
                 collection_name=self.collection_name,
@@ -100,7 +113,7 @@ class RAGEngine:
                 embedding_function=self.embeddings
             )
         else:
-            print("Creating new vector store from documents...")
+            logger.debug("Creating new vector store from documents...")
             self._set_status("🧱 Creating new vector store...")
             return self._create_vectorstore()
 
@@ -120,7 +133,9 @@ class RAGEngine:
                 embedding_function=self.embeddings,
             )
             return store._collection.count() > 0
-        except Exception:
+        except Exception as e:
+            if "dimension" in str(e).lower():
+                logger.warning(f"Dimension mismatch in _has_index_for_dir: {e}")
             return False
 
     def _has_index(self) -> bool:
@@ -149,55 +164,20 @@ class RAGEngine:
         """Loads documents and creates vectors"""
         self._ensure_persist_dir()
         chunks = load_and_split_documents(self.docs_folder, self.text_splitter)
-
-        vectorstore = self._create_vectorstore_pipeline(chunks, clear_existing=clear_existing)
+        vector_store_creator = VectorstoreCreationPipeline(self._has_index(),
+                                                           self.collection_name,
+                                                           self.persist_dir,
+                                                           self.use_openai_api,
+                                                           self.OLLAMA_INGEST_BATCH_SIZE,
+                                                           embeddings=self.embeddings)
+        vectorstore = vector_store_creator.create_vectorstore_pipeline(chunks, clear_existing=clear_existing)
         self._save_documents_state(self._collect_documents_state())
-        print("   ✅ Vector store created!")
-        print("💾 Vector store saved!")
+        logger.debug("   ✅ Vector store created!")
+        logger.debug("💾 Vector store saved!")
 
         return vectorstore
 
-    def _create_vectorstore_pipeline(self, chunks: list, clear_existing: bool = False) -> Chroma:
-        """Provider-aware ingestion pipeline for vectorstore creation."""
-        if clear_existing and self._has_index():
-            try:
-                existing_store = Chroma(
-                    collection_name=self.collection_name,
-                    persist_directory=str(self.persist_dir),
-                    embedding_function=self.embeddings,
-                )
-                existing_store.delete_collection()
-            except Exception:
-                pass
 
-        vectorstore = Chroma(
-            collection_name=self.collection_name,
-            persist_directory=str(self.persist_dir),
-            embedding_function=self.embeddings,
-        )
-
-        if self.use_openai_api:
-            vectorstore.add_documents(chunks)
-            return vectorstore
-
-        total_chunks = len(chunks)
-        batch_size = self.OLLAMA_INGEST_BATCH_SIZE
-        print(f"🧱 Step 4: Ollama ingest pipeline in batches of {batch_size}...")
-        estimate_time = None
-        for start in range(0, total_chunks, batch_size):
-            start_time = time.time()
-            end = min(start + batch_size, total_chunks)
-            vectorstore.add_documents(chunks[start:end])
-            elapsed_time = time.time() - start_time
-            if estimate_time is None:
-                estimate_time = elapsed_time
-            else:
-                estimate_time = (estimate_time + elapsed_time) / 2
-
-            estimate_time_str = time.strftime('%H:%M:%S', estimate_time * (total_chunks - end) / (end - start + 1))
-            print(f"   ✅ Indexed chunks {start + 1}-{end} / {total_chunks}", f"⏱ Estimated time remaining: {estimate_time_str} seconds")
-
-        return vectorstore
 
     def query(self, question: str, context: str = "") -> dict:
         """Asks a question and returns answer + sources"""
@@ -214,19 +194,7 @@ class RAGEngine:
         self.vectorstore = self._load_or_create_vectorstore()
         self.qa_chain = self._build_qa_chain()
 
-    def estimate_query_cost(self, question, context, estimated_output=100):
-        """Estimate cost BEFORE making API call"""
-        messages = build_cost_estimation_prompt(question, context)
+        # rag_doc_backend/rag_engine.py
 
-        estimated_completion = "word " * max(1, int(estimated_output))
-        result = calculate_all_costs_and_tokens(
-            prompt=messages,
-            completion=estimated_completion,
-            model=self.model_name,
-        )
 
-        return {
-            "input_tokens": result["prompt_tokens"],
-            "estimated_output_tokens": result["completion_tokens"],
-            "estimated_total_cost": result["prompt_cost"] + result["completion_cost"],
-        }
+

@@ -1,26 +1,23 @@
+import logging
+logger = logging.getLogger("uvicorn.error")
 import streamlit as st
-
-from rag_engine import RAGEngine
+from rag_doc_frontend.rag_client import RagClient
 
 
 def initialize_engine():
     try:
         st.session_state.engine_status = "⏳ Initializing vector store..."
-        selected_model = (
-            st.session_state.selected_openai_model
-            if st.session_state.use_openai_api
-            else st.session_state.selected_local_model
-        )
+        selected_model = st.session_state.selected_model
+
         st.session_state.selected_model = selected_model
-        st.session_state.engine = RAGEngine(
+        st.session_state.engine = RagClient(
             model_name=selected_model,
-            use_openai_api=st.session_state.use_openai_api,
+            model_family=st.session_state.selected_model_family,
             status_callback=lambda message: st.session_state.__setitem__("engine_status", message),
+            k=st.session_state.k
         )
-        if st.session_state.use_openai_api:
-            print("using open ai model: " + selected_model)
-        else:
-            print("using local model: " + selected_model)
+
+        logger.debug(f"using {st.session_state.selected_model_family} model: " + selected_model)
         st.session_state.engine_ready = True
         st.session_state.engine_error = None
         if st.session_state.engine_status and not st.session_state.engine_status.startswith("⏳"):

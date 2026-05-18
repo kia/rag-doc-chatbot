@@ -1,8 +1,10 @@
+import logging
+logger = logging.getLogger("uvicorn.error")
 import traceback
 
 import streamlit as st
-
-from quality_metrics import render_quality_metrics
+from rag_doc_frontend.metrics import render_quality_metrics
+from rag_doc_frontend.rag_client import RagClient
 from source_view import render_sources
 from token_usage import TokenUsage
 
@@ -44,14 +46,18 @@ class ChatView:
         st.session_state.pending_prompt = prompt
         st.session_state.pending_estimate = None
 
-        if st.session_state.use_openai_api:
+        if st.session_state.selected_model_family == "openai":
             try:
-                estimate = st.session_state.engine.estimate_query_cost(
-                    question=prompt,
+                estimate = RagClient.estimate_query_cost(
+                    query=prompt,
+                    model_family=st.session_state.selected_model_family,
+                    model_name=st.session_state.selected_model,
                     context="",
+                    k=st.session_state.k
                 )
                 st.session_state.pending_estimate = estimate
-            except Exception:
+            except Exception as e:
+                logger.debug(e)
                 st.session_state.pending_estimate = None
 
         st.rerun()
@@ -93,9 +99,11 @@ class ChatView:
                 st.session_state.messages.append({"model_name":model_name, "role": "user", "content": pending_prompt})
                 with st.spinner("🤔 **" + model_name + "** - Searching documents..."):
                     try:
-                        result = st.session_state.engine.query(pending_prompt)
+                        result = RagClient.query_rag_server(pending_prompt,
+                                                            st.session_state.selected_model_family,
+                                                            st.session_state.selected_model,
+                                                            st.session_state.k)
                         st.write(result["answer"])
-
                         if result.get("token_usage"):
                             self.token_usage.render_token_usage(result["token_usage"])
 
@@ -119,7 +127,7 @@ class ChatView:
                         st.rerun()
                     except Exception as e:
                         st.error(f"❌ Error: {str(e)}")
-                        print(traceback.format_exc())
+                        logger.debug(traceback.format_exc())
                     finally:
                         st.session_state.pending_prompt = None
                         st.session_state.pending_estimate = None

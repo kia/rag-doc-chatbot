@@ -1,14 +1,12 @@
 from pathlib import Path
 
 import streamlit as st
+from rag_doc_frontend.rag_client import RagClient
 
-from model.ollama import get_local_ollama_models
-from model.open_ai import validate_openai_key, get_open_ai_models
 
 class Sidebar:
     def __init__(self, initialize_engine_fn):
         self.initialize_engine_fn = initialize_engine_fn
-        self.estimate_time = ""
 
     def render(self):
         with st.sidebar:
@@ -16,12 +14,10 @@ class Sidebar:
             self._render_model_provider_settings()
             self._render_engine_actions()
             self._render_documents_section()
+            self._render_k_slider()
             st.markdown("---")
 
     def _render_model_provider_settings(self):
-        local_models = get_local_ollama_models()
-        if "provider_choice" not in st.session_state:
-            st.session_state.provider_choice = "OpenAI" if st.session_state.get("use_openai_api", False) else "Ollama"
 
         provider_choice = st.radio(
             "Model provider",
@@ -31,47 +27,47 @@ class Sidebar:
         )
 
         st.session_state.use_openai_api = provider_choice == "OpenAI"
+        st.session_state.selected_model_family = "openai" if provider_choice == "OpenAI" else "ollama"
 
         if st.session_state.use_openai_api:
-            open_ai_valid = validate_openai_key()
-            if open_ai_valid:
-                ai_models = get_open_ai_models()
-                if not ai_models:
-                    ai_models = ["gpt-4.1-mini"]
+            ai_models = RagClient.get_open_ai_models()
+            if not ai_models:
+                ai_models = ["gpt-4.1-mini"]
+            if (
+                "selected_model" not in st.session_state
+                or st.session_state.selected_model not in ai_models
+            ):
+                st.session_state.selected_model = ai_models[0]
 
-                if (
-                    "selected_openai_model" not in st.session_state
-                    or st.session_state.selected_openai_model not in ai_models
-                ):
-                    st.session_state.selected_openai_model = ai_models[0]
-
-                st.selectbox(
-                    "OpenAI model",
-                    options=ai_models,
-                    key="selected_openai_model",
-                    help="Select open ai models.",
-                )
-
+            option = st.selectbox(
+                "OpenAI model",
+                options=ai_models,
+                key="selected_openai_model",
+                help="Select open ai models.",
+            )
+            st.session_state.selected_model = option
         else:
+            local_models = RagClient.get_available_ollama_models()
             if not local_models:
                 local_models = ["gemma:2b"]
-            if "selected_local_model" not in st.session_state or st.session_state.selected_local_model not in local_models:
-                st.session_state.selected_local_model = local_models[0]
+            if "selected_local_model" not in st.session_state or st.session_state.selected_model not in local_models:
+                st.session_state.selected_model = local_models[0]
 
-            st.selectbox(
+            option = st.selectbox(
                 "Ollama model",
                 options=local_models,
                 key="selected_local_model",
                 help="Select one of your local Ollama models.",
             )
+            st.session_state.selected_model = option
 
     def _render_engine_actions(self):
-        if st.button("🚀 Initialize / Load vector store"):
+        if st.button("🚀 Refresh / Load vector store", use_container_width=True, ):
             self.initialize_engine_fn()
             st.rerun()
 
-        if st.button("🔄 Rebuild vector store", disabled=not st.session_state.engine_ready):
-            st.session_state.engine.reset_vectorstore()
+        if st.button("🔄 Rebuild vector store", disabled=not st.session_state.engine_ready, use_container_width=True):
+            RagClient.reset_vectorstore(model_name=st.session_state.selected_model, model_family=st.session_state.selected_model_family, k=st.session_state.k)
             st.rerun()
 
         st.markdown("---")
@@ -108,4 +104,17 @@ class Sidebar:
                 st.table(file_names)
         else:
             st.caption("No PDF files loaded yet.")
+
+    def _render_k_slider(self):
+        st.slider(
+            "Number of documents to retrieve",
+            min_value=1,
+            max_value=10,
+            value=st.session_state.k,
+            key="k",
+            help="Number of documents to retrieve for each query",
+        )
+
+
+
 

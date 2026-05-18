@@ -1,8 +1,10 @@
 import time
+import logging
+logger = logging.getLogger("uvicorn.error")
 
-from generation.build_prompt import build_query_prompt
-from quality_metrics import build_quality_metrics
-from retrieval.embed_query import run_embedded_query
+from rag_doc_backend.generation.build_prompt import build_query_prompt
+from rag_doc_backend.metrics.quality_metrics import build_quality_metrics
+from rag_doc_backend.retrieval.embed_query import run_embedded_query
 
 
 def generate_answer(qa_chain, question: str, use_openai_api: bool, context: str = "") -> dict:
@@ -10,6 +12,9 @@ def generate_answer(qa_chain, question: str, use_openai_api: bool, context: str 
     full_query = build_query_prompt(question, context)
     result, token_usage = run_embedded_query(qa_chain, full_query, use_openai_api)
     source_documents = result["source_documents"]
+
+    #filtered_docs = [(doc, score) for doc, score in source_documents if score >= 0.5]
+    logger.debug(source_documents)
 
     sources = []
     for doc in source_documents:
@@ -28,6 +33,7 @@ def generate_answer(qa_chain, question: str, use_openai_api: bool, context: str 
         })
 
     latency_ms = int((time.time() - start_time) * 1000)
+    print(result)
     quality_metrics = build_quality_metrics(
         source_documents=source_documents,
         answer=result["result"],

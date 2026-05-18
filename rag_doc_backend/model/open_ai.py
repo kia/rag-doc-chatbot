@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger("uvicorn.error")
 import os
 import requests
 from langchain_openai import OpenAI
@@ -20,7 +22,7 @@ def get_open_ai_models():
             return filtered
 
     except Exception as e:
-        print(f"Error fetching models: {e}")
+        logger.debug(f"Error fetching models: {e}")
 
     # Fallback
     return ["gpt-5.5", "gpt-5.5 pro", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.3-codex", "gpt-4.1",
@@ -33,6 +35,6 @@ def validate_openai_key(api_key=os.getenv("OPENAI_API_KEY")):
 
         return True
     except Exception as e:
-        print(e)
+        logger.debug(e)
         return False
 

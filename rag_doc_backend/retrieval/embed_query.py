@@ -2,7 +2,7 @@ from langchain_community.callbacks.manager import get_openai_callback
 
 
 def run_embedded_query(qa_chain, query_text: str, use_openai_api: bool):
-    token_usage = None
+    token_usage:dict = {}
     if use_openai_api:
         with get_openai_callback() as cb:
             result = qa_chain.invoke({"query": query_text})

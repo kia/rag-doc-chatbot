@@ -11,8 +11,9 @@ def initialize_session_state():
         "pending_prompt": None,
         "pending_estimate": None,
         "opened_source": None,
+        "score_threshold": 0.5,
+        "k": 5
     }
 
     for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+        st.session_state.setdefault(key, value)

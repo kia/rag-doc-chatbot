@@ -29,7 +29,7 @@ Subsequent application launches load the persisted vector store instantly, elimi
 
 ## Architecture
 
-![](./architecture.png)
+![](./doc/architecture.png)
 
 ## Key Features
 
@@ -93,7 +93,7 @@ streamlit run app.py
 ## Demo
 
 
-![](./Demo.png)
+![](./doc/Demo.png)
 ---
 
 ## 🎯 This project demonstrates hands-on experience with **core concepts of modern LLM development**:
