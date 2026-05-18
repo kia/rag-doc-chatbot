@@ -114,8 +114,8 @@ streamlit run app.py
 - [ ] Multi-user support with authentication
 - [ ] More file formats (.docx, .txt, .md)
 - [ ] Chat history in database (H2/PostgreSQL)
-- [ ] FastAPI backend instead of Streamlit
+- [X] FastAPI backend instead of Streamlit
 - [ ] Docker container for easy deployment
-- [ ] Evaluation metrics for answer quality
+- [X] Evaluation metrics for answer quality
 
 ---
