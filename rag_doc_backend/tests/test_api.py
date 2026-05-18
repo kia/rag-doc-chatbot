@@ -47,6 +47,8 @@ class TestRAGAPI:
             "answer": "The company revenue is €8.7M (mocked).",
             "sources": [
                 {
+                    "rank": 1,
+                    "similarity_score": 0.9,
                     "source": "docs/report.pdf",
                     "chunk_preview": "Revenue was €8.7M in 2023.",
                     "page": 1,
@@ -67,6 +69,8 @@ class TestRAGAPI:
         data = response.json()
         assert data["answer"] == "The company revenue is €8.7M (mocked)."
         assert "€8.7M" in data["answer"]
+        assert data["sources"][0]["rank"] == 1
+        assert data["sources"][0]["similarity_score"] == 0.9
 
     def test_query_empty_query(self, client):
         """Test validation – empty query"""

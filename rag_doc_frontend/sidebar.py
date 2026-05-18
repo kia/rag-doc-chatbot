@@ -10,6 +10,18 @@ class Sidebar:
 
     def render(self):
         with st.sidebar:
+            st.markdown(
+                """
+                <style>
+                div.stButton > button {
+                    display: flex;
+                    justify-content: flex-start;
+                    width: 100%;
+                }
+                </style>
+                """,
+                unsafe_allow_html=True
+            )
             st.header("Settings")
             self._render_model_provider_settings()
             self._render_engine_actions()
@@ -110,7 +122,6 @@ class Sidebar:
             "Number of documents to retrieve",
             min_value=1,
             max_value=10,
-            value=st.session_state.k,
             key="k",
             help="Number of documents to retrieve for each query",
         )

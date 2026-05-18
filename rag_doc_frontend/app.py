@@ -24,6 +24,7 @@ st.markdown(
         }
         .stApp [data-testid="stMainBlockContainer"] {
             padding-top: 0rem;
+            max-width: 100%;
         }
         
     </style>
@@ -52,7 +53,6 @@ sidebar = Sidebar(initialize_engine)
 sidebar.render()
 
 chat_view = ChatView()
-with st.container(height=600):
-    chat_view.render()
+chat_view.render()
 
 render_opened_source()
