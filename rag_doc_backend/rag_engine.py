@@ -58,7 +58,8 @@ class RAGEngine:
         else:
             logger.debug("using local ollama mode: " + self.model_name)
             self.embeddings = create_embeddings(self.use_openai_api, self.model_name)
-            self.llm = ChatOllama(model=self.model_name, base_url="http://localhost:11434", temperature=0.7)
+            ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+            self.llm = ChatOllama(model=self.model_name, base_url=ollama_base_url, temperature=0.7)
 
         store_map = StoreMapping(self.use_openai_api, self.model_name)
         self.persist_dir = store_map.resolve_persist_dir()

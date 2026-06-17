@@ -22,7 +22,7 @@ Subsequent application launches load the persisted vector store instantly, elimi
 |-----------|------------|---------|
 | **Frontend** | Streamlit | Interactive chat interface |
 | **RAG Framework** | LangChain | Orchestration of the RAG pipeline |
-| **Embeddings** | SentenceTransformers | Text-to-vector conversion (local) |
+| **Embeddings** | Ollama / OpenAI | Text-to-vector conversion |
 | **Vector Database** | ChromaDB | Storage & similarity search |
 | **LLM** | Ollama (Llama 3.2) | Answer generation (local) |
 | **PDF Processing** | PyPDF | Document extraction |
@@ -55,40 +55,59 @@ Subsequent application launches load the persisted vector store instantly, elimi
 
 ## Installation & Usage
 
-add `.env` file with the following content:
-```
-# OPENAI_API_KEY=
-# ODER wenn du Ollama lokal nutzt:
-OLLAMA_BASE_URL=http://localhost:11434
-```
+1. **Environment Setup**:
+   Create a `.env` file in the root directory with the following content:
+   ```env
+   # OPENAI_API_KEY=your_api_key_here
+   # OR for local Ollama:
+   OLLAMA_BASE_URL=http://localhost:11434
+   RAG_BACKEND_URL=http://localhost:8000
+   ```
 
-```bash
-# Clone
-git clone https://github.com/kia/rag-doc-chatbot.git
-cd rag-doc-chatbot
+2. **Installation**:
+   ```bash
+   # Clone the repository
+   git clone https://github.com/kia/rag-doc-chatbot.git
+   cd rag-doc-chatbot
 
-# Virtual environment
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# Or on Windows: venv\Scripts\activate
+   # Create and activate virtual environment
+   python3 -m venv venv
+   source venv/bin/activate  # Linux/Mac
+   # Or on Windows: venv\Scripts\activate
 
-# Dependencies
-pip install -r requirements.txt
+   # Install dependencies
+   pip install -r requirements.txt
+   
+   # Optional: Install the project in editable mode to handle imports
+   pip install -e .
+   ```
 
-# Start Ollama (for local LLM)
-ollama serve
+3. **Ollama Setup** (if using local models):
+   ```bash
+   # Start Ollama (in a separate terminal)
+   ollama serve
 
-# Pull the recommended fast model
-ollama pull llama3.2:1b
+   # Pull the recommended fast model
+   ollama pull llama3.2:1b
+   ```
 
-# Or if you want to use llama3.1 (larger, slower):
-ollama pull llama3.1:8b
-```
-add pdf documents to the `documents` directory
-```
-# Start app
-streamlit run app.py
-```
+4. **Prepare Documents**:
+   Add your PDF documents to the `documents/` directory.
+
+5. **Start the Application**:
+   You need to run both the backend and the frontend services.
+
+   **Terminal 1 (Backend):**
+   ```bash
+   # Ensure you are in the project root and venv is active
+   uvicorn rag_doc_backend.main:app --reload
+   ```
+
+   **Terminal 2 (Frontend):**
+   ```bash
+   # Ensure you are in the project root and venv is active
+   streamlit run rag_doc_frontend/app.py
+   ```
 
 ## Demo
 
